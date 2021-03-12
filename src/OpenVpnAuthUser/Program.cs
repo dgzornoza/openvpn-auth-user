@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyModel;
 using Microsoft.Extensions.Hosting;
 using OpenVpnAuthUser.Models;
 using OpenVpnAuthUser.Services;
@@ -25,15 +26,18 @@ namespace OpenVpnAuthUser
 
         static async Task Main(string[] args)
         {
+            var functionDependencyContext = DependencyContext.Load(typeof(Program).Assembly);
+
             Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(Configuration)
+                .ReadFrom.Configuration(Configuration, "Serilog", dependencyContext: functionDependencyContext)
                 .Enrich.FromLogContext()
                 .CreateLogger();
 
             try
-            {
+            {                
                 Log.Information("App started");
 
+                System.Threading.Thread.Sleep(10000);
                 ServiceCollection serviceCollection = new ServiceCollection();
                 ConfigureServices(serviceCollection);
                 ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
