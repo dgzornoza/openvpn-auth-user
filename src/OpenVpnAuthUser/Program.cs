@@ -26,10 +26,8 @@ namespace OpenVpnAuthUser
 
         static async Task Main(string[] args)
         {
-            var functionDependencyContext = DependencyContext.Load(typeof(Program).Assembly);
-
             Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(Configuration, "Serilog", dependencyContext: functionDependencyContext)
+                .ReadFrom.Configuration(Configuration)
                 .Enrich.FromLogContext()
                 .CreateLogger();
 
@@ -37,7 +35,6 @@ namespace OpenVpnAuthUser
             {                
                 Log.Information("App started");
 
-                System.Threading.Thread.Sleep(10000);
                 ServiceCollection serviceCollection = new ServiceCollection();
                 ConfigureServices(serviceCollection);
                 ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
