@@ -10,18 +10,29 @@ using OpenVpnAuthUser.Models;
 
 namespace OpenVpnAuthUser.Services
 {
-    public class AuthUserPasswordService : IAuthUserService
+    /// <summary>
+    /// Service for authenticate in openvpn with Environment vars, in server.ovpn config file should be configured with:
+    /// 
+    /// script-security 3    
+    /// auth-user-pass-verify "auth\\OpenVpnAuthUser.exe" via-env
+    /// 
+    /// in client.ovpn file should be configured with
+    /// 
+    /// auth-user-pass
+    /// 
+    /// </summary>
+    public class AuthUserPasswordEnvironmentService : IAuthUserService
     {
-        private readonly ILogger<AuthUserPasswordService> _logger;
+        private readonly ILogger<AuthUserPasswordEnvironmentService> _logger;
         private readonly SettingsModel _settings;
 
-        public AuthUserPasswordService(ILogger<AuthUserPasswordService> logger, IOptions<SettingsModel> options)
+        public AuthUserPasswordEnvironmentService(ILogger<AuthUserPasswordEnvironmentService> logger, IOptions<SettingsModel> options)
         {
             _logger = logger;
             _settings = options.Value;
         }
 
-        public async Task Validate()
+        public async Task Validate(string[] args)
         {
             // openvpn environment vars should be configured with : auth-user-pass-verify OpenVpnAuthUser.exe via-env
             string userName = Environment.GetEnvironmentVariable("username");

@@ -5,6 +5,10 @@ namespace OpenVpnAuthUser.Services
 {
     public interface IAuthUserService
     {
-        Task Validate();
+        /// <summary>
+        /// method for validate user in openvpn
+        /// </summary>
+        /// <param name="args">program arguments established by openvpn</param>
+        Task Validate(string[] args);
     }
 }

@@ -1,10 +1,12 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using OpenVpnAuthUser.Models;
 using OpenVpnAuthUser.Services;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -21,6 +23,8 @@ namespace OpenVpnAuthUser
 
         static async Task Main(string[] args)
         {
+            int result = 1;
+
             Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
             Configuration = new ConfigurationBuilder()
@@ -38,67 +42,67 @@ namespace OpenVpnAuthUser
             try
             {                
                 Log.Information("App started");
-
-
-
-                LogUserName();
-
-
-
-                ServiceCollection serviceCollection = new ServiceCollection();
+                
+                var serviceCollection = new ServiceCollection();
                 ConfigureServices(serviceCollection);
                 ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
 
-                IAuthUserService authUserService = serviceProvider.GetService<IAuthUserService>();
-                await authUserService.Validate();
+
+                // call user validation
+                string authService = serviceProvider.GetService<IOptions<SettingsModel>>().Value.AuthService;
+                IAuthUserService authUserService = serviceProvider.GetService<Func<string, IAuthUserService>>()(authService);
+                await authUserService.Validate(args);
 
                 // OK
-                Environment.Exit(0);
+                result = 0;
             }
             catch (UnauthorizedAccessException ex)
             {
                 Log.Fatal(ex, "Unauthorized");
+                // NOK
+                result = 1;
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
             {
-                Log.Fatal(ex, "App terminated unexpectedly");                
+                Log.Fatal(ex, "App terminated unexpectedly");
+                // NOK
+                result = 1;
             }
-#pragma warning restore CA1031 // Do not catch general exception types
             finally
             {
                 Log.Information("App finished");
                 Log.CloseAndFlush();
             }
 
-            // NO OK
-            Environment.Exit(1);
-        }
-
-
-        private static void LogUserName()
-        {
-            string userName = Environment.UserName;
-
-
-            Log.Information($"UserName: {userName}");
-
-            Log.Information($"Launched from {Environment.CurrentDirectory}");
-            Log.Information($"Physical location {AppDomain.CurrentDomain.BaseDirectory}");
-            Log.Information($"AppContext.BaseDir {AppContext.BaseDirectory}");
-            Log.Information($"Runtime Call {Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName)}");
-
+            
+            Environment.Exit(result);
         }
     
 
 
-        private static void ConfigureServices(IServiceCollection services)
+        static private void ConfigureServices(IServiceCollection services)
         {
             services.AddLogging(configure => configure.AddSerilog());
 
             services.Configure<SettingsModel>(Configuration.GetSection("Settings"));
 
-            services.AddScoped<IAuthUserService, AuthUserPasswordService>();
+            // add auth services
+            services.AddScoped<AuthUserPasswordEnvironmentService>();
+            services.AddScoped<AuthUserPasswordFileService>();
+
+            // Strategies factory for IAuthUserService
+            services.AddScoped<Func<string, IAuthUserService>>(serviceProvider => key =>
+            {
+                switch (key)
+                {
+                    case nameof(AuthUserPasswordEnvironmentService):
+                        return serviceProvider.GetService<AuthUserPasswordEnvironmentService>();
+                    case nameof(AuthUserPasswordFileService):
+                        return serviceProvider.GetService<AuthUserPasswordFileService>();
+                    default:
+                        throw new KeyNotFoundException($"Assertion, register type {key} not exists in IOC");
+                }
+            });
         }
 
 
